@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const PORT = 3001; // Для bumer измени на 3001
 const DB_FILE = path.join(__dirname, 'database.json');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -40,24 +40,36 @@ const DEFAULT_DATA = {
   }
 };
 
+// --- ОПТИМИЗАЦИЯ: КЭШИРОВАНИЕ И АСИНХРОННОСТЬ ---
+let dbCache = null;
+
 const readDB = () => {
+  if (dbCache) return dbCache; // Если данные в памяти — отдаем мгновенно
   try {
     if (!fs.existsSync(DB_FILE)) return null;
     const raw = fs.readFileSync(DB_FILE, 'utf8');
     if (!raw) return null;
-    return JSON.parse(raw);
+    dbCache = JSON.parse(raw);
+    return dbCache;
   } catch (e) {
     console.error("Database read error:", e);
     return null;
   }
 };
 
-const writeDB = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+const writeDB = (data) => {
+  dbCache = data; // Обновляем данные в памяти
+  // Записываем на диск асинхронно, чтобы не блокировать сервер (убирает 504 ошибку)
+  fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), (err) => {
+    if (err) console.error("Database write error:", err);
+  });
+};
 
 const initDB = () => {
   let db = readDB();
   if (!db) { writeDB(DEFAULT_DATA); db = DEFAULT_DATA; }
   let changed = false;
+  
   if (!db.settings) { db.settings = DEFAULT_DATA.settings; changed = true; }
   
   if (db.settings && db.settings.sizeGrid && !db.settings.sizeGrids) {
@@ -91,6 +103,7 @@ const initDB = () => {
 
 initDB();
 
+// --- ХЕЛПЕРЫ ---
 const normalizePhone = (phone) => String(phone).replace(/\D/g, '');
 const isValidPhone = (phone) => {
   const clean = normalizePhone(phone);
@@ -109,8 +122,6 @@ const formatPhoneNumber = (value) => {
   }
   return value; 
 };
-
-// Хелпер для цвета (С большой буквы)
 const capitalize = (str) => {
     if (!str) return '';
     return String(str).charAt(0).toUpperCase() + String(str).slice(1);
@@ -209,18 +220,17 @@ app.post('/api/settings', (req, res) => {
 
 // ================= CLIENTS =================
 
-app.get('/api/clients', (req, res) => { const db = readDB() || DEFAULT_DATA; res.json(db.clients || []); });
+app.get('/api/clients', (req, res) => res.json(readDB().clients || []));
 
-// Удалить всех клиентов
 app.delete('/api/clients', (req, res) => { 
-    const db = readDB() || DEFAULT_DATA; 
+    const db = readDB(); 
     db.clients = []; 
     writeDB(db); 
     res.json({ success: true, message: 'Все клиенты удалены' }); 
 });
 
 app.post('/api/clients', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   const { name, phone, city } = req.body;
   if (!name) return res.status(400).json({ message: "Имя обязательно" });
   
@@ -239,7 +249,7 @@ app.post('/api/clients', (req, res) => {
 });
 
 app.put('/api/clients/:id', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   const id = Number(req.params.id);
   const index = db.clients.findIndex(c => c.id === id);
   if (index !== -1) {
@@ -260,14 +270,14 @@ app.put('/api/clients/:id', (req, res) => {
 });
 
 app.delete('/api/clients/:id', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   db.clients = db.clients.filter(c => c.id !== Number(req.params.id));
   writeDB(db);
   res.json({ success: true });
 });
 
 app.post('/api/clients/import', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   const importList = req.body;
   let added = 0; let skipped = 0;
   importList.forEach((c) => {
@@ -284,32 +294,27 @@ app.post('/api/clients/import', (req, res) => {
   res.json({ added, skipped, message: `Импорт: Добавлено ${added}, Пропущено (дубли): ${skipped}` });
 });
 
-// ================= MODELS (ИСПРАВЛЕНО: SKU+COLOR) =================
+// ================= MODELS =================
 
-app.get('/api/models', (req, res) => { const db = readDB() || DEFAULT_DATA; res.json(db.models || []); });
+app.get('/api/models', (req, res) => res.json(readDB().models || []));
 
-// 1. Удалить все модели
 app.delete('/api/models', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   db.models = [];
   writeDB(db);
   res.json({ success: true, message: 'Все модели удалены' });
 });
 
-// 2. Создать (Дубликат по SKU+Color)
 app.post('/api/models', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   let { sku, color } = req.body;
   if (!sku) return res.status(400).json({ message: "Артикул обязателен" });
-
   if (color) color = capitalize(color);
 
-  // Проверка дублей (Артикул + Цвет)
   const exists = db.models.find(m => 
       m.sku.toLowerCase() === sku.toLowerCase() && 
       (m.color || '').toLowerCase() === (color || '').toLowerCase()
   );
-  
   if (exists) return res.status(400).json({ message: `Модель "${sku} ${color}" уже существует` });
 
   const newModel = { ...req.body, sku, color, id: Date.now() };
@@ -318,28 +323,22 @@ app.post('/api/models', (req, res) => {
   res.json(newModel);
 });
 
-// 3. Обновить (Дубликат по SKU+Color)
 app.put('/api/models/:id', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   const id = Number(req.params.id);
   const index = db.models.findIndex(m => m.id === id);
   if (index !== -1) {
     let updatedData = { ...req.body };
     if (updatedData.color) updatedData.color = capitalize(updatedData.color);
-
     const checkSku = (updatedData.sku || db.models[index].sku).toLowerCase();
     const checkColor = (updatedData.color || db.models[index].color || '').toLowerCase();
 
-    // Проверка дублей
     if (updatedData.sku || updatedData.color) {
          const exists = db.models.find(m => 
-             m.id !== id && 
-             m.sku.toLowerCase() === checkSku && 
-             (m.color || '').toLowerCase() === checkColor
+             m.id !== id && m.sku.toLowerCase() === checkSku && (m.color || '').toLowerCase() === checkColor
          );
          if (exists) return res.status(400).json({ message: `Модель "${checkSku} ${checkColor}" уже существует` });
     }
-
     db.models[index] = { ...db.models[index], ...updatedData };
     writeDB(db);
     res.json(db.models[index]);
@@ -347,58 +346,69 @@ app.put('/api/models/:id', (req, res) => {
 });
 
 app.delete('/api/models/:id', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   db.models = db.models.filter(m => m.id !== Number(req.params.id));
   writeDB(db);
   res.json({ success: true });
 });
 
-// 4. Импорт (Пропуск дублей SKU+Color)
 app.post('/api/models/import', (req, res) => {
-  const db = readDB() || DEFAULT_DATA;
+  const db = readDB();
   const importedData = req.body;
-  let added = 0; 
-  let skipped = 0;
+  let added = 0; let skipped = 0;
   const errors = [];
 
   importedData.forEach((item, idx) => {
     const sku = item.sku || item.Артикул;
     let color = item.color || item.Цвет;
     const price = item.price !== undefined ? item.price : item.Цена;
-    
     if (!sku || !color || price === undefined) { errors.push(`Строка ${idx + 2}: Нет полей`); return; }
-    
     color = capitalize(color);
-
-    // Пропуск дублей
-    const exists = db.models.find(m => 
-        m.sku.toLowerCase() === String(sku).toLowerCase() && 
-        (m.color || '').toLowerCase() === String(color).toLowerCase()
-    );
-    
-    if (exists) {
-        skipped++;
-        return;
-    }
-
+    const exists = db.models.find(m => m.sku.toLowerCase() === String(sku).toLowerCase() && (m.color || '').toLowerCase() === String(color).toLowerCase());
+    if (exists) { skipped++; return; }
     db.models.push({ id: Date.now() + idx, sku, color, price: Number(price), gridId: 1 });
     added++;
   });
-  
   writeDB(db);
   res.json({ added, skipped, errors, message: `Импорт: Добавлено ${added}, Пропущено (дубли): ${skipped}` });
 });
 
-// ORDERS
-app.get('/api/orders', (req, res) => { const db = readDB() || DEFAULT_DATA; res.json(db.orders || []); });
-app.post('/api/orders', (req, res) => { const db = readDB() || DEFAULT_DATA; const maxOrderId = db.orders.reduce((max, o) => Math.max(max, o.orderId || 0), 0); const nextId = maxOrderId + 1; const newOrder = { ...req.body, id: Date.now(), orderId: nextId }; db.orders.unshift(newOrder); writeDB(db); res.json(newOrder); });
-app.put('/api/orders/:id', (req, res) => { const db = readDB() || DEFAULT_DATA; const id = Number(req.params.id); const index = db.orders.findIndex(o => o.id === id); if (index !== -1) { const existing = db.orders[index]; db.orders[index] = { ...req.body, id: id, orderId: existing.orderId }; writeDB(db); res.json(db.orders[index]); } else { res.status(404).json({ message: "Заказ не найден" }); } });
-app.delete('/api/orders/:id', (req, res) => { const db = readDB() || DEFAULT_DATA; const id = Number(req.params.id); db.orders = db.orders.filter(o => o.id !== id); writeDB(db); res.json({ success: true }); });
+// ================= ORDERS =================
+
+app.get('/api/orders', (req, res) => res.json(readDB().orders || []));
+
+app.post('/api/orders', (req, res) => {
+  const db = readDB();
+  const maxOrderId = db.orders.reduce((max, o) => Math.max(max, o.orderId || 0), 0);
+  const newOrder = { ...req.body, id: Date.now(), orderId: maxOrderId + 1 };
+  db.orders.unshift(newOrder);
+  writeDB(db);
+  res.json(newOrder);
+});
+
+app.put('/api/orders/:id', (req, res) => {
+  const db = readDB();
+  const id = Number(req.params.id);
+  const index = db.orders.findIndex(o => o.id === id);
+  if (index !== -1) {
+    const existing = db.orders[index];
+    db.orders[index] = { ...req.body, id: id, orderId: existing.orderId };
+    writeDB(db);
+    res.json(db.orders[index]);
+  } else { res.status(404).json({ message: "Заказ не найден" }); }
+});
+
+app.delete('/api/orders/:id', (req, res) => {
+  const db = readDB();
+  db.orders = db.orders.filter(o => o.id !== Number(req.params.id));
+  writeDB(db);
+  res.json({ success: true });
+});
 
 app.use((req, res) => {
-  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  const indexPath = path.join(DIST_DIR, 'index.html');
   if (fs.existsSync(indexPath)) res.sendFile(indexPath);
-  else res.send('API Server is running! Frontend is not built yet.');
+  else res.send('API Server is running!');
 });
 
 app.listen(PORT, (err) => {

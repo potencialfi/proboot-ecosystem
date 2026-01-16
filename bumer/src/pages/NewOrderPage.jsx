@@ -666,38 +666,59 @@ const NewOrderPage = ({
         
         {/* PRINT PORTAL */}
         <PrintPortal>
-            <style>
-                {`
-                    @media print {
-                        @page { margin: 0; size: auto; }
-                        body { background: white; visibility: hidden; }
-                        
-                        /* Скрываем всё, кроме портала печати */
-                        body > *:not(#print-mount-point) { display: none !important; }
-                        
-                        #print-mount-point { 
-                            visibility: visible;
-                            display: block !important; 
-                            position: absolute; 
-                            top: 0; 
-                            left: 0; 
-                            width: 100%;
-                        }
-                        
-                        .invoice-copy { 
-                            page-break-after: always; 
-                            break-after: page; 
-                            min-height: 100vh;
-                            width: 100%;
-                            display: block;
-                        }
-                        .invoice-copy:last-child {
-                            page-break-after: auto;
-                            break-after: auto;
-                        }
-                    }
-                `}
-            </style>
+
+<style>
+    {`
+        @media print {
+            @page { 
+                margin: 0; /* Прибираємо стандартні відступи принтера */
+                size: auto; /* Дозволяємо браузеру керувати розміром */
+            }
+            
+            body, html {
+                margin: 0;
+                padding: 0;
+                background: white !important; 
+                visibility: hidden;
+                height: 100%; /* Важливо для розтягування */
+            }
+            
+            /* Приховуємо все, крім нашого порталу для друку */
+            body > *:not(#print-mount-point) { display: none !important; }
+            
+            #print-mount-point { 
+                visibility: visible;
+                display: block !important; /* НІЯКИХ FLEX тут! */
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+            }
+            
+            /* Стилі для обгортки кожної копії */
+            .invoice-copy { 
+                display: block !important;
+                width: 100%;
+                /* Гарантуємо, що блок займає мінімум одну сторінку A4 */
+                min-height: 297mm; 
+                
+                /* Жорсткий примусовий розрив сторінки після блоку */
+                page-break-after: always !important; /* Для старих браузерів */
+                break-after: page !important;        /* Для нових браузерів */
+                
+                /* Запобігаємо накладенню контенту */
+                overflow: hidden; 
+            }
+
+            /* Скасовуємо розрив після останньої копії, інакше буде пустий лист в кінці */
+            .invoice-copy:last-of-type {
+                page-break-after: auto !important;
+                break-after: auto !important;
+                min-height: auto; /* Останній може бути меншим, якщо треба */
+            }
+        }
+    `}
+</style>
             <div>
                 {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
                     <div key={i} className="invoice-copy">

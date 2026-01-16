@@ -171,7 +171,6 @@ export default function App() {
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
       </main>
-      <style>{`@keyframes slide-down { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } } .animate-slide-down { animation: slide-down 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; } .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; } @media print { body * { visibility: hidden; } #invoice, #invoice * { visibility: visible; } #invoice { position: absolute; left: 0; top: 0; width: 100%; } aside { display: none; } }`}</style>
     </div>
   );
 }

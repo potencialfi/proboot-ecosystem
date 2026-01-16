@@ -61,7 +61,7 @@ const InvoicePreview = ({ order, settings }) => {
     };
 
     return (
-        <div className="bg-white max-w-[210mm] min-h-[297mm] mx-auto p-8 shadow-lg print:shadow-none print:m-0 print:w-full print:h-auto print:min-h-0 flex flex-col justify-between" id="invoice">
+        <div className="bg-white max-w-[210mm] min-h-[297mm] mx-auto p-8 shadow-lg print:shadow-none print:m-0 print:w-full print:h-auto print:min-h-0 flex flex-col justify-between">
             
             <div>
                 <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4 mb-6">

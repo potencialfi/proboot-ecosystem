@@ -667,37 +667,53 @@ const NewOrderPage = ({
         {/* PRINT PORTAL */}
         <PrintPortal>
             <style>
-                {`
-                    @media print {
-                        @page { margin: 0; size: auto; }
-                        body { background: white; visibility: hidden; }
-                        
-                        /* Скрываем всё, кроме портала печати */
-                        body > *:not(#print-mount-point) { display: none !important; }
-                        
-                        #print-mount-point { 
-                            visibility: visible;
-                            display: block !important; 
-                            position: absolute; 
-                            top: 0; 
-                            left: 0; 
-                            width: 100%;
-                        }
-                        
-                        .invoice-copy { 
-                            page-break-after: always; 
-                            break-after: page; 
-                            min-height: 100vh;
-                            width: 100%;
-                            display: block;
-                        }
-                        .invoice-copy:last-child {
-                            page-break-after: auto;
-                            break-after: auto;
-                        }
-                    }
-                `}
-            </style>
+    {`
+        @media print {
+            @page { 
+                margin: 0; 
+                size: auto; 
+            }
+            
+            body, html {
+                margin: 0;
+                padding: 0;
+                background: white !important; 
+                visibility: hidden;
+                height: 100%;
+            }
+            
+            /* Скрываем всё, кроме портала для печати */
+            body > *:not(#print-mount-point) { display: none !important; }
+            
+            #print-mount-point { 
+                visibility: visible;
+                display: block !important;
+                position: static !important; /* Убираем наложение */
+                width: 100%;
+            }
+            
+            /* Каждая копия накладной */
+            .invoice-copy { 
+                display: block !important;
+                width: 100%;
+                min-height: 297mm; /* Высота листа A4 */
+                
+                /* Принудительный разрыв страницы */
+                page-break-after: always !important; 
+                break-after: page !important;
+                
+                overflow: hidden; 
+            }
+
+            /* Убираем разрыв после последней копии, чтобы не было пустого листа */
+            .invoice-copy:last-of-type {
+                page-break-after: auto !important;
+                break-after: auto !important;
+                min-height: auto;
+            }
+        }
+    `}
+</style>
             <div>
                 {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
                     <div key={i} className="invoice-copy">
