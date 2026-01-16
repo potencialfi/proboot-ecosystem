@@ -665,78 +665,60 @@ const NewOrderPage = ({
     <div className="page-container h-full flex flex-col p-6 gap-6 overflow-hidden bg-slate-50">
         
         {/* PRINT PORTAL */}
-        <PrintPortal>
-            <style>
-    {`
-        @media print {
-            @page { 
-                margin: 0; 
-                size: auto; 
+        {/* Найди этот блок в своем NewOrderPage.jsx и замени только его */}
+<PrintPortal>
+    <style>
+        {`
+            @media print {
+                @page { margin: 0; size: auto; }
+                body { background: white !important; visibility: hidden; }
+                body > *:not(#print-mount-point) { display: none !important; }
+                #print-mount-point { 
+                    visibility: visible;
+                    display: block !important; 
+                    position: static !important;
+                    width: 100%;
+                }
+                .invoice-copy { 
+                    display: block !important;
+                    width: 100%;
+                    min-height: 297mm; 
+                    page-break-after: always !important; 
+                    break-after: page !important;
+                    overflow: hidden; 
+                }
+                .invoice-copy:last-of-type {
+                    page-break-after: auto !important;
+                    break-after: auto !important;
+                    min-height: auto;
+                }
             }
-            
-            body, html {
-                margin: 0;
-                padding: 0;
-                background: white !important; 
-                visibility: hidden;
-                height: 100%;
-            }
-            
-            /* Скрываем всё, кроме портала для печати */
-            body > *:not(#print-mount-point) { display: none !important; }
-            
-            #print-mount-point { 
-                visibility: visible;
-                display: block !important;
-                position: static !important; /* Убираем наложение */
-                width: 100%;
-            }
-            
-            /* Каждая копия накладной */
-            .invoice-copy { 
-                display: block !important;
-                width: 100%;
-                min-height: 297mm; /* Высота листа A4 */
-                
-                /* Принудительный разрыв страницы */
-                page-break-after: always !important; 
-                break-after: page !important;
-                
-                overflow: hidden; 
-            }
-
-            /* Убираем разрыв после последней копии, чтобы не было пустого листа */
-            .invoice-copy:last-of-type {
-                page-break-after: auto !important;
-                break-after: auto !important;
-                min-height: auto;
-            }
-        }
-    `}
-</style>
-            <div>
-                {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
-                    <div key={i} className="invoice-copy">
-                        <InvoicePreview 
-                            order={{
-                                ...draft, 
-                                id: draft.id || nextOrderId,
-                                orderId: draft.orderId || (draft.id ? draft.id : nextOrderId),
-                                items: safeCart, 
-                                total: finalTotal, 
-                                lumpDiscount: currentLumpDiscount,
-                                payment: {
-                                    originalAmount: draft.prepayment,
-                                    originalCurrency: draft.paymentCurrency,
-                                    prepaymentInUSD: getPrepaymentInMain()
-                                }
-                            }} 
-                            settings={{...settings, exchangeRates: localExchangeRates}} 
-                        />
-                    </div>
-                ))}
+        `}
+    </style>
+    <div>
+        {/* Это цикл, который создает копии */}
+        {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
+            <div key={i} className="invoice-copy">
+                <InvoicePreview 
+                    order={{
+                        ...draft, 
+                        id: draft.id || nextOrderId,
+                        orderId: draft.orderId || (draft.id ? draft.id : nextOrderId),
+                        items: safeCart, 
+                        total: finalTotal, 
+                        lumpDiscount: currentLumpDiscount,
+                        payment: {
+                            originalAmount: draft.prepayment,
+                            originalCurrency: draft.paymentCurrency,
+                            prepaymentInUSD: getPrepaymentInMain()
+                        }
+                    }} 
+                    settings={{...settings, exchangeRates: localExchangeRates}} 
+                />
             </div>
-        </PrintPortal>
+        ))}
+    </div>
+</PrintPortal>
 
         <ToastContainer toasts={toasts} removeToast={removeToast} />
         

@@ -31,6 +31,7 @@ export default function App() {
       boxTemplates: {}, 
       exchangeRates: { usd: 0, eur: 0, isManual: false },
       mainCurrency: 'USD',
+      defaultPrintCopies: 1,
       brandName: 'SHOE EXPO',
       brandPhones: [],
       brandLogo: null
