@@ -58,8 +58,8 @@ const ReportModal = ({ isOpen, onClose }) => {
                 <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <AlertTriangle size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Отчет недоступен</h3>
-                <p className="text-gray-500 mb-8">Отчет невозможно сформировать до окончания выставки.</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Отчет уже сформирован</h3>
+                <p className="text-gray-500 mb-8">Ваш отчет был сформирован автоматически, проверьте вкладнку "Отчеты".</p>
                 <button onClick={onClose} className="w-full py-3 px-4 rounded-xl bg-gray-900 text-white font-bold hover:bg-gray-800 transition-all active:scale-95">Понятно</button>
             </div>
         </ModalPortal>
