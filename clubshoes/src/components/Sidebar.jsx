@@ -6,19 +6,21 @@ import {
   History, 
   Settings, 
   LogOut, 
-  Bell
+  Bell,
+  FileText
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, user, settings, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Дашборд', icon: LayoutDashboard },
+    // { id: 'newOrder', label: 'Новый заказ', icon: Box }, // <-- СКРЫТО
     { id: 'clients', label: 'Клиенты', icon: Users },
     { id: 'models', label: 'Модели', icon: Box },
     { id: 'history', label: 'История', icon: History },
+    { id: 'reports', label: 'Отчеты', icon: FileText },
     { id: 'settings', label: 'Настройки', icon: Settings },
   ];
 
-  // Первая буква бренда или логина для аватара
   const brandInitial = settings?.brandName 
     ? settings.brandName.trim().charAt(0).toUpperCase() 
     : (user?.login?.charAt(0).toUpperCase() || 'U');
@@ -71,14 +73,12 @@ const Sidebar = ({ activeTab, setActiveTab, user, settings, onLogout }) => {
             <div className="text-sm font-bold text-slate-800 truncate" title={user?.login}>
               {user?.login || 'Пользователь'}
             </div>
-            {/* Название бренда вместо "Менеджер" */}
             <div className="text-[11px] font-black text-blue-600 uppercase tracking-tighter truncate">
               {settings?.brandName || 'Менеджер'}
             </div>
           </div>
 
           <div className="flex flex-col gap-1 pr-1">
-            {/* Кнопка уведомлений с кастомной плашкой */}
             <div className="relative group/notif">
               <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
                 <Bell size={18} />
