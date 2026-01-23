@@ -37,11 +37,13 @@ export default function App() {
       brandLogo: null
   });
 
+  // --- ИСПРАВЛЕНИЕ 1: Добавлено поле note ---
   const initialOrderState = {
       cart: [],
       clientPhone: '',
       clientName: '',
       clientCity: '',
+      note: '', // <--- Было пропущено
       selectedClient: null,
       prepayment: '',
       paymentCurrency: 'USD',
@@ -90,6 +92,7 @@ export default function App() {
       const items = order.items || [];
       const payment = order.payment || {};
 
+      // --- ИСПРАВЛЕНИЕ 2: Подтягиваем note из заказа ---
       setOrderDraft({
           id: order.id, 
           orderId: order.orderId, 
@@ -97,6 +100,7 @@ export default function App() {
           clientPhone: client ? client.phone : '',
           clientName: client ? client.name : '',
           clientCity: client ? client.city : '',
+          note: order.note || '', // <--- Важно! Иначе при редактировании примечание стиралось
           selectedClient: client,
           prepayment: payment.originalAmount || '',
           paymentCurrency: payment.originalCurrency || (settings.mainCurrency || 'USD'),
@@ -150,7 +154,6 @@ export default function App() {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} settings={settings} onLogout={handleLogout} />
       
       <main className="flex-1 overflow-auto relative custom-scrollbar">
-        {/* ИСПРАВЛЕНО: Добавлен onEditOrder={handleEditOrder} */}
         {activeTab === 'dashboard' && <div className="p-0 h-full"><DashboardPage orders={orders} clients={clients} setActiveTab={setActiveTab} settings={settings} onEditOrder={handleEditOrder} /></div>}
         
         {activeTab === 'newOrder' && (
@@ -160,6 +163,9 @@ export default function App() {
                 setOrders={setOrders} orders={orders} triggerToast={triggerToast} settings={settings}
                 orderDraft={orderDraft} setOrderDraft={setOrderDraft} clearOrderDraft={clearOrderDraft} 
                 goToSettingsAndHighlight={goToSettingsAndHighlight}
+                onOrderCreated={loadAllData} // Чтобы обновить список после создания
+                onOrderUpdated={loadAllData}
+                onCancelEdit={() => { clearOrderDraft(); setActiveTab('history'); }} // Возврат в историю
             />
             </div>
         )}

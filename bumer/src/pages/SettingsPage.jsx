@@ -113,15 +113,22 @@ const SettingsPage = ({ apiCall, triggerToast, settings, setSettings, highlightS
       if (val !== '') saveAll({ exchangeRates: newRates }); 
   };
 
-  const fetchNBU = async () => { 
+ const fetchNBU = async () => { 
       try { 
-          const res = await fetch(`http://localhost:3001/api/nbu-rates`); 
-          const data = await res.json(); 
-          const newRates = { usd: Number(data.usd.toFixed(2)), eur: Number(data.eur.toFixed(2)), isManual: false }; 
+          // Используем apiCall вместо fetch с жесткой ссылкой
+          const data = await apiCall('/nbu-rates'); 
+          
+          const newRates = { 
+              usd: Number(data.usd.toFixed(2)), 
+              eur: Number(data.eur.toFixed(2)), 
+              isManual: false 
+          }; 
+          
           setRates(newRates); 
           saveAll({ exchangeRates: newRates }); 
           addToast("Курсы обновлены (НБУ)"); 
       } catch (e) { 
+          console.error(e);
           addToast("Ошибка НБУ", "error"); 
       } 
   };

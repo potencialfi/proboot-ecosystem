@@ -1,0 +1,24 @@
+{
+  "admin": {
+    "login": "root",
+    "password": "123"
+  },
+  "usersDirectory": {
+    "root": "SUPER_ADMIN",
+    "admin": "bumer",
+    "manager": "bumer",
+    "owner": "clubshoes"
+  },
+  "companies": [
+    {
+      "id": "bumer",
+      "name": "Bumer",
+      "isActive": true
+    },
+    {
+      "id": "clubshoes",
+      "name": "ClubShoes",
+      "isActive": true
+    }
+  ]
+}

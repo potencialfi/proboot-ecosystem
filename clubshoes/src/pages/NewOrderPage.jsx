@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Trash2, Save, ArrowLeft, ShoppingBag, Wallet, Phone, User, MapPin, FileText, Tag, X, Box, Minus, Check, AlertTriangle, Edit, Printer } from 'lucide-react';
+import { Search, Plus, Trash2, Save, ShoppingBag, Phone, User, MapPin, FileText, X, Box, Minus, Check, AlertTriangle, Edit, Printer } from 'lucide-react';
 import { convertPrice } from '../utils';
 import { apiCall } from '../api';
 import { Button } from '../components/UI';
 import InvoicePreview from '../components/InvoicePreview';
+
+// --- ХЕЛПЕР ДЛЯ ГЕНЕРАЦИИ ДИАПАЗОНА ---
+const generateSizeRange = (min, max) => {
+    const start = parseInt(min);
+    const end = parseInt(max);
+    if (isNaN(start) || isNaN(end)) return ['40', '41', '42', '43', '44', '45'];
+    return Array.from({ length: end - start + 1 }, (_, i) => String(start + i));
+};
 
 // --- PORTALS ---
 const ModalPortal = ({ children }) => createPortal(
@@ -12,7 +20,7 @@ const ModalPortal = ({ children }) => createPortal(
     document.body
 );
 
-// ПОРТАЛ ДЛЯ ПЕЧАТИ (Рендерится отдельно, чтобы не ломать верстку)
+// ПОРТАЛ ДЛЯ ПЕЧАТИ
 const PrintPortal = ({ children }) => createPortal(
     <div id="print-mount-point">{children}</div>,
     document.body
@@ -31,8 +39,6 @@ const ToastContainer = ({ toasts, removeToast }) => createPortal(
 );
 
 // --- MODALS ---
-
-// 1. SUCCESS MODAL (НОВОЕ)
 const SuccessSaveModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
     return (
@@ -43,12 +49,7 @@ const SuccessSaveModal = ({ isOpen, onClose }) => {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Готово!</h3>
                 <p className="text-gray-500 mb-8 text-lg">Заказ успешно сохранен.</p>
-                <button 
-                    onClick={onClose} 
-                    className="w-full py-3.5 px-4 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg shadow-green-200 text-lg transition-all active:scale-95"
-                >
-                    ОК
-                </button>
+                <button onClick={onClose} className="w-full py-3.5 px-4 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg shadow-green-200 text-lg transition-all active:scale-95">ОК</button>
             </div>
         </ModalPortal>
     );
@@ -99,6 +100,13 @@ const RateEditModal = ({ isOpen, onClose, onSave, label, currentRate }) => {
 const EditCartItemModal = ({ isOpen, onClose, item, onSave, settings }) => {
     const [sizes, setSizes] = useState({});
     const [boxCounts, setBoxCounts] = useState({});
+
+    const dynamicSizeRange = useMemo(() => {
+        if (!item || !settings?.sizeGrids) return ['40', '41', '42', '43', '44', '45'];
+        const gridId = item.gridId || settings.defaultSizeGridId || 1;
+        const grid = settings.sizeGrids.find(g => g.id === gridId);
+        return grid ? generateSizeRange(grid.min, grid.max) : ['40', '41', '42', '43', '44', '45'];
+    }, [item, settings]);
 
     useEffect(() => {
         if (item && isOpen) {
@@ -155,21 +163,21 @@ const EditCartItemModal = ({ isOpen, onClose, item, onSave, settings }) => {
                 </div>
                 <div className="p-6">
                     <label className="text-label mb-3 block">Количество по размерам:</label>
-                    <div className="grid grid-cols-6 gap-2 mb-4">
-                        {['40','41','42','43','44','45'].map(size => (
-                            <div key={size} className="flex flex-col items-center">
+                    <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                        {dynamicSizeRange.map(size => (
+                            <div key={size} className="flex flex-col items-center w-16">
                                 <span className="text-xs font-bold text-gray-500 mb-1">{size}</span>
                                 <input type="number" className="w-full h-10 text-center font-bold bg-white border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none" value={sizes[size] || ''} onChange={e => { setSizes({...sizes, [size]: e.target.value}); setBoxCounts({}); }}/>
                             </div>
                         ))}
                     </div>
                     {boxTemplates && (
-                        <div className="flex gap-2 mb-6">
+                        <div className="flex gap-2 mb-6 flex-wrap">
                             {Object.entries(boxTemplates).map(([pairsCount, templateSizes]) => {
                                 const count = boxCounts[pairsCount] || 0;
                                 const isActive = count > 0;
                                 return (
-                                    <div key={pairsCount} className={`flex-1 flex items-center justify-center h-10 rounded-lg transition-all border ${isActive ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+                                    <div key={pairsCount} className={`min-w-[80px] flex-1 flex items-center justify-center h-10 rounded-lg transition-all border ${isActive ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
                                         {!isActive ? (
                                             <button onClick={() => updateBoxCount(pairsCount, 1)} className="w-full h-full flex items-center justify-center gap-2 text-sm font-bold text-gray-600 hover:text-blue-600"><Box size={16} /> {pairsCount} пар</button>
                                         ) : (
@@ -342,7 +350,7 @@ const NewOrderPage = ({
     onNavigateToDashboard 
 }) => {
   
-  const defaultDraft = { cart: [], clientPhone: '', clientName: '', clientCity: '', clientNote: '', selectedClient: null, prepayment: '', paymentCurrency: 'USD', lumpDiscount: '' };
+  const defaultDraft = { cart: [], clientPhone: '', clientName: '', clientCity: '', note: '', selectedClient: null, prepayment: '', paymentCurrency: 'USD', lumpDiscount: '' };
   
   const [localDraft, setLocalDraft] = useState(() => {
       if (typeof window !== 'undefined') {
@@ -354,11 +362,7 @@ const NewOrderPage = ({
 
   const draft = orderDraft?.id ? orderDraft : localDraft;
   const setDraft = orderDraft?.id ? setOrderDraft : setLocalDraft;
-
-  // -- STATE FOR NEXT ID --
   const [nextOrderId, setNextOrderId] = useState(null);
-  
-  // -- SUCCESS MODAL STATE --
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
@@ -443,6 +447,13 @@ const NewOrderPage = ({
       return models.filter(m => (m.sku||'').toLowerCase().includes(s) || (m.color||'').toLowerCase().includes(s)).slice(0,10);
   }, [modelSearch, models]);
 
+  const dynamicSizeRange = useMemo(() => {
+      if (!selectedModel || !settings?.sizeGrids) return ['40', '41', '42', '43', '44', '45'];
+      const gridId = selectedModel.gridId || settings.defaultSizeGridId || 1;
+      const grid = settings.sizeGrids.find(g => g.id === gridId);
+      return grid ? generateSizeRange(grid.min, grid.max) : ['40', '41', '42', '43', '44', '45'];
+  }, [selectedModel, settings]);
+
   const boxTemplates = useMemo(() => selectedModel ? settings?.boxTemplates?.[selectedModel.gridId] : null, [selectedModel, settings]);
   useEffect(() => {
       if (!boxTemplates) return;
@@ -475,7 +486,18 @@ const NewOrderPage = ({
     } else {
         const sizeNote = Object.entries(cleanSizes).sort((a,b)=>Number(a[0])-Number(b[0])).map(([s,q])=>`${s}(${q})`).join(', ');
         const itemTotal = selectedModel.price * addQty;
-        const newItem = { ...selectedModel, modelId: selectedModel.id, id: Date.now(), qty: addQty, sizes: cleanSizes, note: sizeNote, discountPerPair: 0, price: selectedModel.price, total: itemTotal };
+        const newItem = { 
+            ...selectedModel, 
+            modelId: selectedModel.id, 
+            id: Date.now(), 
+            qty: addQty, 
+            sizes: cleanSizes, 
+            note: sizeNote, 
+            discountPerPair: 0, 
+            price: selectedModel.price, 
+            total: itemTotal,
+            gridId: selectedModel.gridId 
+        };
         updateDraft('cart', [...(draft.cart || []), newItem]);
         addToast('Товар добавлен');
     }
@@ -488,7 +510,6 @@ const NewOrderPage = ({
   const saveEditedItem = (u) => { const nc = [...(draft.cart || [])]; nc[editModal.index] = u; updateDraft('cart', nc); setEditModal({ isOpen: false, index: null, item: null }); addToast('Позиция обновлена'); };
   const handleDiscountsSave = (uc, ul) => { updateDraft('cart', uc); updateDraft('lumpDiscount', ul); addToast('Скидки применены'); };
 
-  // CALC TOTALS
   const safeCart = draft.cart || [];
   const rawSubTotal = safeCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const totalPerPairDiscount = safeCart.reduce((sum, item) => sum + ((item.discountPerPair || 0) * item.qty), 0);
@@ -497,7 +518,6 @@ const NewOrderPage = ({
   const finalTotal = Math.max(0, rawSubTotal - totalDiscount);
   const totalOrderQty = safeCart.reduce((sum, item) => sum + (item.qty || 0), 0);
 
-  // LOGIC RATES & TOTALS
   const paymentCurr = draft.paymentCurrency;
   const rates = localExchangeRates || { usd: 1, eur: 1 };
 
@@ -629,7 +649,8 @@ const NewOrderPage = ({
 
           const orderData = {
               clientId: finalClientId, items: safeCart, total: finalTotal, lumpDiscount: currentLumpDiscount,
-              date: isEditing ? draft.date : new Date().toISOString(), note: draft.clientNote,
+              date: isEditing ? draft.date : new Date().toISOString(), 
+              note: draft.note, 
               payment: { originalAmount: pVal, originalCurrency: draft.paymentCurrency, rateAtMoment: 1, prepaymentInUSD: prepUSD }
           };
           
@@ -642,13 +663,11 @@ const NewOrderPage = ({
               if (onOrderCreated) await onOrderCreated();
           }
           
-          // Открываем модальное окно успеха вместо перезагрузки
           setShowSuccessModal(true);
 
       } catch (e) { addToast('Ошибка: ' + e.message, 'error'); }
   };
 
-  // Метод, который вызывается при нажатии ОК в модальном окне успеха
   const handleSuccessConfirm = () => {
       setShowSuccessModal(false);
       localStorage.removeItem('orderDraft');
@@ -664,65 +683,85 @@ const NewOrderPage = ({
   return (
     <div className="page-container h-full flex flex-col p-6 gap-6 overflow-hidden bg-slate-50">
         
-        {/* PRINT PORTAL */}
-        {/* Найди этот блок в своем NewOrderPage.jsx и замени только его */}
-<PrintPortal>
-    <style>
-        {`
-            @media print {
-                @page { margin: 0; size: auto; }
-                body { background: white !important; visibility: hidden; }
-                body > *:not(#print-mount-point) { display: none !important; }
-                #print-mount-point { 
-                    visibility: visible;
-                    display: block !important; 
-                    position: static !important;
-                    width: 100%;
-                }
-                .invoice-copy { 
-                    display: block !important;
-                    width: 100%;
-                    min-height: 297mm; 
-                    page-break-after: always !important; 
-                    break-after: page !important;
-                    overflow: hidden; 
-                }
-                .invoice-copy:last-of-type {
-                    page-break-after: auto !important;
-                    break-after: auto !important;
-                    min-height: auto;
-                }
-            }
-        `}
-    </style>
-    <div>
-        {/* Это цикл, который создает копии */}
-        {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
-            <div key={i} className="invoice-copy">
-                <InvoicePreview 
-                    order={{
-                        ...draft, 
-                        id: draft.id || nextOrderId,
-                        orderId: draft.orderId || (draft.id ? draft.id : nextOrderId),
-                        items: safeCart, 
-                        total: finalTotal, 
-                        lumpDiscount: currentLumpDiscount,
-                        payment: {
-                            originalAmount: draft.prepayment,
-                            originalCurrency: draft.paymentCurrency,
-                            prepaymentInUSD: getPrepaymentInMain()
+        {/* ИСПРАВЛЕНО: Стили печати теперь сбрасывают все ограничения контейнеров */}
+        <PrintPortal>
+            <style>
+                {`
+                    @media print {
+                        @page { margin: 0; size: auto; }
+                        
+                        /* Скрываем всё, кроме портала печати */
+                        body * {
+                            visibility: hidden;
                         }
-                    }} 
-                    settings={{...settings, exchangeRates: localExchangeRates}} 
-                />
+                        
+                        /* Сбрасываем стили body/html для нормального потока страниц */
+                        html, body {
+                            height: auto !important;
+                            overflow: visible !important;
+                            background: white !important;
+                        }
+
+                        /* Настраиваем контейнер печати */
+                        #print-mount-point, #print-mount-point * {
+                            visibility: visible;
+                        }
+                        
+                        #print-mount-point {
+                            position: absolute;
+                            left: 0;
+                            top: 0;
+                            width: 100%;
+                            height: auto;
+                            display: block !important;
+                            overflow: visible !important;
+                        }
+
+                        /* Стили копий накладной */
+                        .invoice-copy {
+                            display: block !important;
+                            width: 100%;
+                            position: relative;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            /* Принудительный разрыв страницы после каждой копии */
+                            page-break-after: always !important;
+                            break-after: page !important;
+                        }
+                        
+                        .invoice-copy:last-child {
+                            page-break-after: auto !important;
+                            break-after: auto !important;
+                        }
+                    }
+                `}
+            </style>
+            <div>
+                {Array.from({ length: Math.max(1, parseInt(settings?.defaultPrintCopies) || 1) }).map((_, i) => (
+                    <div key={i} className="invoice-copy">
+                        <InvoicePreview 
+                            order={{
+                                ...draft, 
+                                id: draft.id || nextOrderId,
+                                orderId: draft.orderId || (draft.id ? draft.id : nextOrderId),
+                                items: safeCart, 
+                                total: finalTotal, 
+                                lumpDiscount: currentLumpDiscount,
+                                payment: {
+                                    originalAmount: draft.prepayment,
+                                    originalCurrency: draft.paymentCurrency,
+                                    prepaymentInUSD: getPrepaymentInMain()
+                                }
+                            }} 
+                            settings={{...settings, exchangeRates: localExchangeRates}} 
+                        />
+                    </div>
+                ))}
             </div>
-        ))}
-    </div>
-</PrintPortal>
+        </PrintPortal>
 
         <ToastContainer toasts={toasts} removeToast={removeToast} />
         
-        {/* Модалка успеха */}
         <SuccessSaveModal isOpen={showSuccessModal} onClose={handleSuccessConfirm} />
 
         <ConfirmModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false })} onConfirm={confirmDelete} title="Удалить позицию?" message={`Вы действительно хотите удалить "${deleteModal.item?.sku}" из заказа?`}/>
@@ -732,10 +771,8 @@ const NewOrderPage = ({
 
         <div className="flex justify-between items-center bg-white p-5 rounded-2xl shadow-sm border border-gray-200 shrink-0">
             <div className="flex items-center gap-4">
-                {isEditing && <button onClick={onCancelEdit} className="p-2 hover:bg-gray-100 rounded-full text-gray-500"><ArrowLeft /></button>}
                 <div><h1 className="text-3xl font-bold text-gray-900 tracking-tight">{isEditing ? `Заказ #${draft.orderId || draft.id}` : 'Новый заказ'}</h1><p className="text-sm text-gray-500 font-medium mt-1">{isEditing ? 'Редактирование заказа' : 'Оформление заказа'}</p></div>
             </div>
-            <div className="flex gap-3">{isEditing && <Button onClick={onCancelEdit} variant="secondary">Отмена</Button>}</div>
         </div>
 
         <div className="flex gap-6 flex-1 min-h-0">
@@ -752,7 +789,7 @@ const NewOrderPage = ({
                         <div className="relative flex-1"><User className="input-icon" /><input type="text" className="input-with-icon" placeholder="Имя" value={draft.clientName} onChange={e => updateDraft('clientName', e.target.value)}/></div>
                         <div className="relative w-full md:w-1/4"><MapPin className="input-icon" /><input type="text" className="input-with-icon" placeholder="Город" value={draft.clientCity} onChange={e => updateDraft('clientCity', e.target.value)}/></div>
                     </div>
-                    <div className="w-full"><div className="relative"><FileText className="input-icon" /><input type="text" className="input-with-icon" placeholder="Примечание" value={draft.clientNote} onChange={e => updateDraft('clientNote', e.target.value)}/></div></div>
+                    <div className="w-full"><div className="relative"><FileText className="input-icon" /><input type="text" className="input-with-icon" placeholder="Примечание" value={draft.note} onChange={e => updateDraft('note', e.target.value)}/></div></div>
                 </div>
 
                 <div className="card flex-1 flex flex-col">
@@ -767,7 +804,12 @@ const NewOrderPage = ({
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 animate-fade-in">
                             <div className="flex justify-between mb-3"><span className="font-bold text-lg">{selectedModel.sku} / {selectedModel.color}</span><button onClick={() => setSelectedModel(null)}><X size={18} className="text-gray-400 hover:text-gray-600"/></button></div>
                             <div className="flex items-end gap-2 mb-3">
-                                {['40','41','42','43','44','45'].map(size => (<div key={size} className="flex-1 text-center"><div className="text-xs text-gray-500 mb-1">{size}</div><input type="number" className="w-full h-10 border border-gray-300 rounded-lg text-center font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={sizes[size] || ''} onChange={e => { setSizes({...sizes, [size]: e.target.value}); setBoxCounts({}); }}/></div>))}
+                                {dynamicSizeRange.map(size => (
+                                    <div key={size} className="flex-1 text-center">
+                                        <div className="text-xs text-gray-500 mb-1">{size}</div>
+                                        <input type="number" className="w-full h-10 border border-gray-300 rounded-lg text-center font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" value={sizes[size] || ''} onChange={e => { setSizes({...sizes, [size]: e.target.value}); setBoxCounts({}); }}/>
+                                    </div>
+                                ))}
                                 <button onClick={addToCart} className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center shadow-md transition-all active:scale-95" title="Добавить"><Plus size={24} /></button>
                             </div>
                             {boxTemplates && (
@@ -784,7 +826,6 @@ const NewOrderPage = ({
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                         {safeCart.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-gray-400"><ShoppingBag size={48} className="mb-2 opacity-20"/><p>Нет товаров</p></div>) : (safeCart.map((item, idx) => (<CartItem key={idx} index={idx} item={item} onRemove={handleRequestDelete} onEdit={handleRequestEdit} currency={mainCurrency} exchangeRates={settings?.exchangeRates} />)))}
                     </div>
-                    {/* FOOTER TOTAL PAIRS */}
                     <div className="p-3 bg-white border-t border-gray-200 text-right">
                         <span className="text-sm font-bold text-gray-500">Итого: {totalOrderQty} пар</span>
                     </div>
@@ -824,7 +865,6 @@ const NewOrderPage = ({
                         {showSecondaryTotal && (
                             <div className="flex justify-end mt-1 cursor-pointer" onClick={() => handleTotalClick(paymentCurr)}>
                                 <span className="text-lg font-bold text-gray-500 hover:text-gray-700 transition-colors">
-                                    {/* Убрана двойная конвертация: toFixed(2) вместо formatMoney */}
                                     ≈ {getRemainingInPaymentCurrency().toFixed(2)} {paymentCurr}
                                 </span>
                             </div>

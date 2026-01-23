@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3002; // Для bumer измени на 3001
+const PORT = 3001; // Для bumer измени на 3001
 const DB_FILE = path.join(__dirname, 'database.json');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -78,10 +78,6 @@ const initDB = () => {
        delete db.settings.sizeGrid; 
        changed = true;
   }
-  if (db.settings && !db.settings.defaultPrintCopies) {
-    db.settings.defaultPrintCopies = 1;
-    changed = true;
-}
   if (db.settings && !db.settings.boxTemplates) {
        db.settings.boxTemplates = DEFAULT_DATA.settings.boxTemplates;
        changed = true;

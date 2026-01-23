@@ -3,6 +3,7 @@ import { apiCall } from './api';
 import { ensureXLSX } from './utils';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
+import AdminPage from './pages/AdminPage'; // Убедись, что этот файл существует
 import DashboardPage from './pages/DashboardPage';
 import NewOrderPage from './pages/NewOrderPage';
 import ClientsPage from './pages/ClientsPage';
@@ -14,7 +15,7 @@ import { Toast, ImportResultModal } from './components/UI';
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('user');
+      const saved = localStorage.getItem('user'); // Здесь используется ключ 'user' (как в твоем коде)
       return saved ? JSON.parse(saved) : null;
     } catch (e) { return null; }
   });
@@ -31,19 +32,16 @@ export default function App() {
       boxTemplates: {}, 
       exchangeRates: { usd: 0, eur: 0, isManual: false },
       mainCurrency: 'USD',
-      defaultPrintCopies: 1,
       brandName: 'SHOE EXPO',
       brandPhones: [],
       brandLogo: null
   });
 
-  // --- ИСПРАВЛЕНИЕ 1: Добавлено поле note ---
   const initialOrderState = {
       cart: [],
       clientPhone: '',
       clientName: '',
       clientCity: '',
-      note: '', // <--- Было пропущено
       selectedClient: null,
       prepayment: '',
       paymentCurrency: 'USD',
@@ -57,6 +55,7 @@ export default function App() {
 
   const loadAllData = async () => { 
       try { 
+          // Обычный пользователь грузит свои данные
           const data = await apiCall('/data'); 
           setClients(data.clients || []); 
           setModels(data.models || []); 
@@ -75,7 +74,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (user) loadAllData();
+    // Если это обычный юзер, грузим данные. Админу это не нужно (у него свои запросы в AdminPage)
+    if (user && user.role !== 'superadmin') {
+        loadAllData();
+    }
   }, [user]);
   
   const triggerToast = (msg, type = 'success') => {
@@ -92,7 +94,6 @@ export default function App() {
       const items = order.items || [];
       const payment = order.payment || {};
 
-      // --- ИСПРАВЛЕНИЕ 2: Подтягиваем note из заказа ---
       setOrderDraft({
           id: order.id, 
           orderId: order.orderId, 
@@ -100,7 +101,6 @@ export default function App() {
           clientPhone: client ? client.phone : '',
           clientName: client ? client.name : '',
           clientCity: client ? client.city : '',
-          note: order.note || '', // <--- Важно! Иначе при редактировании примечание стиралось
           selectedClient: client,
           prepayment: payment.originalAmount || '',
           paymentCurrency: payment.originalCurrency || (settings.mainCurrency || 'USD'),
@@ -138,6 +138,7 @@ export default function App() {
   };
 
   const handleLoginSuccess = (userData) => {
+    // В LoginPage ты сохраняешь ключ 'user', это правильно
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
@@ -145,10 +146,22 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
+    // Сбрасываем состояния при выходе
+    setClients([]);
+    setOrders([]);
+    setActiveTab('dashboard');
   };
 
+  // 1. Если не залогинен -> Логин
   if (!user) return <LoginPage onLogin={handleLoginSuccess} />;
 
+  // 2. --- ДОБАВЛЕНО: Если Супер-Админ -> Админка ---
+  if (user.role === 'superadmin') {
+      return <AdminPage onLogout={handleLogout} />;
+  }
+  // -------------------------------------------------
+
+  // 3. Иначе -> Твой стандартный интерфейс (Dashboard)
   return (
     <div className="flex h-screen bg-slate-50 text-gray-800 font-sans overflow-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} settings={settings} onLogout={handleLogout} />
@@ -163,9 +176,6 @@ export default function App() {
                 setOrders={setOrders} orders={orders} triggerToast={triggerToast} settings={settings}
                 orderDraft={orderDraft} setOrderDraft={setOrderDraft} clearOrderDraft={clearOrderDraft} 
                 goToSettingsAndHighlight={goToSettingsAndHighlight}
-                onOrderCreated={loadAllData} // Чтобы обновить список после создания
-                onOrderUpdated={loadAllData}
-                onCancelEdit={() => { clearOrderDraft(); setActiveTab('history'); }} // Возврат в историю
             />
             </div>
         )}
