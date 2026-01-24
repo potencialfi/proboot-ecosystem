@@ -3,19 +3,20 @@ import { apiCall } from './api';
 import { ensureXLSX } from './utils';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
-import AdminPage from './pages/AdminPage'; // Убедись, что этот файл существует
+import AdminPage from './pages/AdminPage';
 import DashboardPage from './pages/DashboardPage';
 import NewOrderPage from './pages/NewOrderPage';
 import ClientsPage from './pages/ClientsPage';
 import ModelsPage from './pages/ModelsPage';
 import OrdersPage from './pages/OrdersPage';
 import SettingsPage from './pages/SettingsPage';
+import ReportsPage from './pages/ReportsPage'; // <-- Импорт страницы отчетов
 import { Toast, ImportResultModal } from './components/UI';
 
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('user'); // Здесь используется ключ 'user' (как в твоем коде)
+      const saved = localStorage.getItem('user');
       return saved ? JSON.parse(saved) : null;
     } catch (e) { return null; }
   });
@@ -32,6 +33,7 @@ export default function App() {
       boxTemplates: {}, 
       exchangeRates: { usd: 0, eur: 0, isManual: false },
       mainCurrency: 'USD',
+      defaultPrintCopies: 1,
       brandName: 'SHOE EXPO',
       brandPhones: [],
       brandLogo: null
@@ -42,6 +44,7 @@ export default function App() {
       clientPhone: '',
       clientName: '',
       clientCity: '',
+      note: '', // <-- Важно: поле для примечания
       selectedClient: null,
       prepayment: '',
       paymentCurrency: 'USD',
@@ -55,7 +58,7 @@ export default function App() {
 
   const loadAllData = async () => { 
       try { 
-          // Обычный пользователь грузит свои данные
+          // Загружаем данные только если это не супер-админ (у него своя логика в AdminPage)
           const data = await apiCall('/data'); 
           setClients(data.clients || []); 
           setModels(data.models || []); 
@@ -74,7 +77,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Если это обычный юзер, грузим данные. Админу это не нужно (у него свои запросы в AdminPage)
     if (user && user.role !== 'superadmin') {
         loadAllData();
     }
@@ -101,6 +103,7 @@ export default function App() {
           clientPhone: client ? client.phone : '',
           clientName: client ? client.name : '',
           clientCity: client ? client.city : '',
+          note: order.note || '', // <-- Подтягиваем примечание
           selectedClient: client,
           prepayment: payment.originalAmount || '',
           paymentCurrency: payment.originalCurrency || (settings.mainCurrency || 'USD'),
@@ -138,7 +141,6 @@ export default function App() {
   };
 
   const handleLoginSuccess = (userData) => {
-    // В LoginPage ты сохраняешь ключ 'user', это правильно
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
@@ -146,22 +148,19 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
-    // Сбрасываем состояния при выходе
     setClients([]);
     setOrders([]);
     setActiveTab('dashboard');
   };
 
-  // 1. Если не залогинен -> Логин
   if (!user) return <LoginPage onLogin={handleLoginSuccess} />;
 
-  // 2. --- ДОБАВЛЕНО: Если Супер-Админ -> Админка ---
+  // Если это супер-админ (владелец SaaS), показываем админку
   if (user.role === 'superadmin') {
       return <AdminPage onLogout={handleLogout} />;
   }
-  // -------------------------------------------------
 
-  // 3. Иначе -> Твой стандартный интерфейс (Dashboard)
+  // Обычный интерфейс (Bumer, ClubShoes и т.д.)
   return (
     <div className="flex h-screen bg-slate-50 text-gray-800 font-sans overflow-hidden">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} settings={settings} onLogout={handleLogout} />
@@ -176,6 +175,9 @@ export default function App() {
                 setOrders={setOrders} orders={orders} triggerToast={triggerToast} settings={settings}
                 orderDraft={orderDraft} setOrderDraft={setOrderDraft} clearOrderDraft={clearOrderDraft} 
                 goToSettingsAndHighlight={goToSettingsAndHighlight}
+                onOrderCreated={loadAllData} 
+                onOrderUpdated={loadAllData}
+                onCancelEdit={() => { clearOrderDraft(); setActiveTab('history'); }}
             />
             </div>
         )}
@@ -183,6 +185,18 @@ export default function App() {
         {activeTab === 'clients' && <ClientsPage clients={clients} setClients={setClients} triggerToast={triggerToast} handleFileImport={handleFileImport} loadAllData={loadAllData} setImportResult={setImportResult}/>}
         {activeTab === 'models' && <ModelsPage models={models} setModels={setModels} triggerToast={triggerToast} handleFileImport={handleFileImport} loadAllData={loadAllData} setImportResult={setImportResult} settings={settings}/>}
         {activeTab === 'history' && <OrdersPage orders={orders} setOrders={setOrders} clients={clients} settings={settings} triggerToast={triggerToast} onEdit={handleEditOrder} />}
+        
+        {/* --- СТРАНИЦА ОТЧЕТОВ --- */}
+        {activeTab === 'reports' && (
+            <ReportsPage 
+                orders={orders}
+                clients={clients}
+                settings={settings}
+                onEditOrder={handleEditOrder} 
+                onReload={loadAllData} 
+            />
+        )}
+
         {activeTab === 'settings' && <SettingsPage apiCall={apiCall} triggerToast={triggerToast} settings={settings} setSettings={setSettings} highlightSetting={highlightSetting} setHighlightSetting={setHighlightSetting} loadAllData={loadAllData} />}
         
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

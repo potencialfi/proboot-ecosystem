@@ -6,7 +6,8 @@ import {
   History, 
   Settings, 
   LogOut, 
-  Bell
+  Bell,
+  FileText // Добавляем иконку
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, user, settings, onLogout }) => {
@@ -15,6 +16,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, settings, onLogout }) => {
     { id: 'clients', label: 'Клиенты', icon: Users },
     { id: 'models', label: 'Модели', icon: Box },
     { id: 'history', label: 'История', icon: History },
+    { id: 'reports', label: 'Отчеты', icon: FileText }, // Новый пункт
     { id: 'settings', label: 'Настройки', icon: Settings },
   ];
 

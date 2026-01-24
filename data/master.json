@@ -1,14 +1,30 @@
 {
-  "admin": {
-    "login": "root",
-    "password": "123"
+  "settings": {
+    "rootPassword": "admin",
+    "allowRegistration": false
   },
-  "usersDirectory": {
-    "root": "SUPER_ADMIN",
-    "admin": "bumer",
-    "manager": "bumer",
-    "owner": "clubshoes"
-  },
+  "usersDirectory": [
+    {
+      "id": "u1",
+      "login": "root",
+      "password": "123",
+      "role": "superadmin"
+    },
+    {
+      "id": "u2",
+      "login": "bumer",
+      "password": "123",
+      "companyId": "bumer",
+      "role": "admin"
+    },
+    {
+      "id": "u3",
+      "login": "clubshoes",
+      "password": "123",
+      "companyId": "clubshoes",
+      "role": "admin"
+    }
+  ],
   "companies": [
     {
       "id": "bumer",

@@ -9,6 +9,7 @@ import ClientsPage from './pages/ClientsPage';
 import ModelsPage from './pages/ModelsPage';
 import OrdersPage from './pages/OrdersPage';
 import SettingsPage from './pages/SettingsPage';
+import ReportsPage from './pages/ReportsPage'; // <-- Импорт
 import { Toast, ImportResultModal } from './components/UI';
 
 export default function App() {
@@ -37,13 +38,12 @@ export default function App() {
       brandLogo: null
   });
 
-  // --- ИСПРАВЛЕНИЕ 1: Добавлено поле note ---
   const initialOrderState = {
       cart: [],
       clientPhone: '',
       clientName: '',
       clientCity: '',
-      note: '', // <--- Было пропущено
+      note: '', 
       selectedClient: null,
       prepayment: '',
       paymentCurrency: 'USD',
@@ -92,7 +92,6 @@ export default function App() {
       const items = order.items || [];
       const payment = order.payment || {};
 
-      // --- ИСПРАВЛЕНИЕ 2: Подтягиваем note из заказа ---
       setOrderDraft({
           id: order.id, 
           orderId: order.orderId, 
@@ -100,7 +99,7 @@ export default function App() {
           clientPhone: client ? client.phone : '',
           clientName: client ? client.name : '',
           clientCity: client ? client.city : '',
-          note: order.note || '', // <--- Важно! Иначе при редактировании примечание стиралось
+          note: order.note || '', 
           selectedClient: client,
           prepayment: payment.originalAmount || '',
           paymentCurrency: payment.originalCurrency || (settings.mainCurrency || 'USD'),
@@ -163,9 +162,9 @@ export default function App() {
                 setOrders={setOrders} orders={orders} triggerToast={triggerToast} settings={settings}
                 orderDraft={orderDraft} setOrderDraft={setOrderDraft} clearOrderDraft={clearOrderDraft} 
                 goToSettingsAndHighlight={goToSettingsAndHighlight}
-                onOrderCreated={loadAllData} // Чтобы обновить список после создания
+                onOrderCreated={loadAllData} 
                 onOrderUpdated={loadAllData}
-                onCancelEdit={() => { clearOrderDraft(); setActiveTab('history'); }} // Возврат в историю
+                onCancelEdit={() => { clearOrderDraft(); setActiveTab('history'); }} 
             />
             </div>
         )}
@@ -173,6 +172,18 @@ export default function App() {
         {activeTab === 'clients' && <ClientsPage clients={clients} setClients={setClients} triggerToast={triggerToast} handleFileImport={handleFileImport} loadAllData={loadAllData} setImportResult={setImportResult}/>}
         {activeTab === 'models' && <ModelsPage models={models} setModels={setModels} triggerToast={triggerToast} handleFileImport={handleFileImport} loadAllData={loadAllData} setImportResult={setImportResult} settings={settings}/>}
         {activeTab === 'history' && <OrdersPage orders={orders} setOrders={setOrders} clients={clients} settings={settings} triggerToast={triggerToast} onEdit={handleEditOrder} />}
+        
+        {/* --- ОТЧЕТЫ --- */}
+        {activeTab === 'reports' && (
+            <ReportsPage 
+                orders={orders}
+                clients={clients}
+                settings={settings}
+                onEditOrder={handleEditOrder} 
+                onReload={loadAllData} 
+            />
+        )}
+
         {activeTab === 'settings' && <SettingsPage apiCall={apiCall} triggerToast={triggerToast} settings={settings} setSettings={setSettings} highlightSetting={highlightSetting} setHighlightSetting={setHighlightSetting} loadAllData={loadAllData} />}
         
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
