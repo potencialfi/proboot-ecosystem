@@ -4,7 +4,6 @@ import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Настройка путей для ESM модулей
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,7 +14,7 @@ const PORT = 3005;
 app.use(cors());
 app.use(express.json());
 
-// API: Получить материалы
+// --- API ROUTES ---
 app.get('/api/materials', async (req, res) => {
   try {
     const materials = await prisma.material.findMany();
@@ -25,7 +24,6 @@ app.get('/api/materials', async (req, res) => {
   }
 });
 
-// API: Создать материал
 app.post('/api/materials', async (req, res) => {
   try {
     const { name, unit, costPerUnit } = req.body;
@@ -38,13 +36,19 @@ app.post('/api/materials', async (req, res) => {
   }
 });
 
-// Раздача фронтенда (папка dist создается после npm run build)
-// Поднимаемся на уровень выше из папки server
+// --- FRONTEND SERVING ---
+
+// 1. Статика (JS, CSS, картинки) отдается из папки dist
+// Важно: express.static должен быть привязан к пути /system
 app.use('/system', express.static(path.join(__dirname, '../dist')));
 
-// Любой другой запрос отправляем на index.html (для React Router)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+app.get('/', (req, res) => {
+  res.send('ProBoot ERP System is running. Please access via /system/');
+});
+
+// 3. Любой другой запрос внутри /system/* отдаем index.html (для React Router)
+app.get('/system/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
