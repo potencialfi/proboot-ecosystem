@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Material {
+  id          String   @id @default(uuid())
+  name        String
+  article     String?
+  unit        String   
+  costPerUnit Float    @default(0)
+  stockQty    Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  invoiceItems SupplyItem[]
+  recipes      ProductRecipe[]
+}
+
+model SupplyInvoice {
+  id          String       @id @default(uuid())
+  number      String
+  date        DateTime     @default(now())
+  supplier    String?
+  totalAmount Float        @default(0)
+  items       SupplyItem[]
+}
+
+model SupplyItem {
+  id              String        @id @default(uuid())
+  supplyInvoiceId String
+  invoice         SupplyInvoice @relation(fields: [supplyInvoiceId], references: [id])
+  materialId      String
+  material        Material      @relation(fields: [materialId], references: [id])
+  quantity        Float
+  pricePerUnit    Float
+  totalPrice      Float
+}
+
+model Product {
+  id        String          @id @default(uuid())
+  sku       String          @unique
+  name      String
+  imageUrl  String?
+  basePrice Float           @default(0)
+  recipes   ProductRecipe[]
+}
+
+model ProductRecipe {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id])
+  quantity   Float
+}
